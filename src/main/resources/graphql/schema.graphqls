@@ -1,0 +1,124 @@
+scalar BigDecimal
+scalar DateTime
+
+# =====================================================================
+# ENUMS
+# =====================================================================
+enum OrderStatus {
+    PENDING
+    CONFIRMED
+    SHIPPED
+    DELIVERED
+    CANCELLED
+}
+
+# =====================================================================
+# TYPES
+# =====================================================================
+type User {
+    id: ID!
+    name: String!
+    email: String!
+    orders: [Order!]!          # resolved via @BatchMapping -> DataLoader (fixes N+1)
+}
+
+type Product {
+    id: ID!
+    name: String!
+    description: String
+    price: BigDecimal!
+    stockQuantity: Int!
+}
+
+type OrderItem {
+    id: ID!
+    quantity: Int!
+    unitPrice: BigDecimal!
+    subtotal: BigDecimal!
+    product: Product!          # resolved via @BatchMapping -> DataLoader (fixes N+1)
+}
+
+type Order {
+    id: ID!
+    user: User!                # resolved via @BatchMapping -> DataLoader (fixes N+1)
+    status: OrderStatus!
+    totalAmount: BigDecimal!
+    createdAt: DateTime!
+    items: [OrderItem!]!       # resolved via @BatchMapping -> DataLoader (fixes N+1)
+}
+
+# =====================================================================
+# INPUTS
+# =====================================================================
+input OrderItemInput {
+    productId: ID!
+    quantity: Int!
+}
+
+input CreateOrderInput {
+    userId: ID!
+    items: [OrderItemInput!]!
+}
+
+input CreateUserInput {
+    name: String!
+    email: String!
+}
+
+input CreateProductInput {
+    name: String!
+    description: String
+    price: BigDecimal!
+    stockQuantity: Int!
+}
+
+# =====================================================================
+# QUERIES
+# =====================================================================
+type Query {
+    "Fetch a single user by id, including their nested orders -> items -> product graph"
+    getUserById(id: ID!): User
+
+    "Fetch all users (demonstrates N+1 when 'orders' is requested on every user)"
+    getAllUsers: [User!]!
+
+    "Fetch a single order by id"
+    getOrderById(id: ID!): Order
+
+    "Fetch orders filtered by status"
+    getOrdersByStatus(status: OrderStatus!): [Order!]!
+
+    "Fetch all products in the catalog"
+    getAllProducts: [Product!]!
+
+    "Fetch a single product by id"
+    getProductById(id: ID!): Product
+}
+
+# =====================================================================
+# MUTATIONS
+# =====================================================================
+type Mutation {
+    "Create a new order for a user with a list of order items. Validates stock availability."
+    createOrder(input: CreateOrderInput!): Order!
+
+    "Transition an order to a new status. Publishes an event consumed by onOrderStatusUpdated."
+    updateOrderStatus(orderId: ID!, status: OrderStatus!): Order!
+
+    "Create a new user"
+    createUser(input: CreateUserInput!): User!
+
+    "Create a new product"
+    createProduct(input: CreateProductInput!): Product!
+}
+
+# =====================================================================
+# SUBSCRIPTIONS
+# =====================================================================
+type Subscription {
+    "Stream live status updates for a specific order id"
+    onOrderStatusUpdated(orderId: ID!): Order!
+
+    "Stream status updates for ALL orders (useful for an ops/admin dashboard demo)"
+    onAnyOrderStatusUpdated: Order!
+}

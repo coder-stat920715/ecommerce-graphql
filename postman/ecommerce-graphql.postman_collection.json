@@ -1,0 +1,820 @@
+{
+  "info": {
+    "name": "Ecommerce GraphQL - Order Management",
+    "description": "Postman collection for the Spring Boot 3 + Spring GraphQL Order Management demo. Covers queries, mutations, N+1 batch-loading verification, and negative/error-handling test cases. Subscriptions are NOT included here (Postman's WebSocket/GraphQL-subscription support varies by version) \u2014 use GraphiQL or wscat as described in TESTING_GUIDE.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "lastCreatedOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastCreatedUserId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Queries",
+      "item": [
+        {
+          "name": "Q1 - Get User By Id (deep nested User -> Orders -> Items -> Product)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query DeepUserGraph {\n  getUserById(id: 1) {\n    id\n    name\n    email\n    orders {\n      id\n      status\n      totalAmount\n      createdAt\n      items {\n        id\n        quantity\n        unitPrice\n        subtotal\n        product {\n          id\n          name\n          price\n        }\n      }\n    }\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"User name is present\", function () {",
+                  "    pm.expect(json.data.getUserById.name).to.eql(\"Alice Johnson\");",
+                  "});",
+                  "pm.test(\"Nested orders array is present\", function () {",
+                  "    pm.expect(json.data.getUserById.orders).to.be.an(\"array\");",
+                  "    pm.expect(json.data.getUserById.orders.length).to.be.greaterThan(0);",
+                  "});",
+                  "pm.test(\"Nested product graph resolved\", function () {",
+                  "    pm.expect(json.data.getUserById.orders[0].items[0].product.name).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Q2 - Get All Users With Orders (N+1 demonstration target)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query AllUsersWithOrders {\n  getAllUsers {\n    id\n    name\n    email\n    orders {\n      id\n      status\n      totalAmount\n    }\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"Returns all 4 seeded users\", function () {",
+                  "    pm.expect(json.data.getAllUsers.length).to.be.at.least(4);",
+                  "});",
+                  "pm.test(\"Every user object has an orders array (even if empty)\", function () {",
+                  "    json.data.getAllUsers.forEach(function (u) {",
+                  "        pm.expect(u.orders).to.be.an(\"array\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Q3 - Get Orders By Status (PENDING)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query PendingOrders {\n  getOrdersByStatus(status: PENDING) {\n    id\n    status\n    totalAmount\n    user {\n      name\n      email\n    }\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"All returned orders have status PENDING\", function () {",
+                  "    json.data.getOrdersByStatus.forEach(function (o) {",
+                  "        pm.expect(o.status).to.eql(\"PENDING\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Q4 - Get All Products (catalog)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Catalog {\n  getAllProducts {\n    id\n    name\n    description\n    price\n    stockQuantity\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"Returns at least 6 seeded products\", function () {",
+                  "    pm.expect(json.data.getAllProducts.length).to.be.at.least(6);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Q5 - Get Product By Id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetProduct {\n  getProductById(id: 1) {\n    id\n    name\n    price\n    stockQuantity\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Product resolved with expected id\", function () {",
+                  "    pm.expect(json.data.getProductById.id).to.eql(\"1\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Q6 - Get Order By Id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetOrder {\n  getOrderById(id: 1) {\n    id\n    status\n    totalAmount\n    user { name }\n    items { quantity product { name } }\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Order resolved with nested user and items\", function () {",
+                  "    pm.expect(json.data.getOrderById.user.name).to.exist;",
+                  "    pm.expect(json.data.getOrderById.items.length).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Q7 (Negative) - Get User By Unknown Id -> expect NOT_FOUND error",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query UnknownUser {\n  getUserById(id: 999999) {\n    id\n    name\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 (GraphQL errors are still HTTP 200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Response contains exactly one error\", function () {",
+                  "    pm.expect(json.errors).to.be.an(\"array\").with.lengthOf(1);",
+                  "});",
+                  "pm.test(\"Error is classified as NOT_FOUND\", function () {",
+                  "    pm.expect(json.errors[0].extensions.errorCode).to.eql(\"NOT_FOUND\");",
+                  "});",
+                  "pm.test(\"data.getUserById is null\", function () {",
+                  "    pm.expect(json.data.getUserById).to.be.null;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Mutations",
+      "item": [
+        {
+          "name": "M1 - Create Order (happy path)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation PlaceOrder($input: CreateOrderInput!) {\n  createOrder(input: $input) {\n    id\n    status\n    totalAmount\n    createdAt\n    items {\n      quantity\n      unitPrice\n      subtotal\n      product { name }\n    }\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"userId\": 2,\n    \"items\": [\n      {\n        \"productId\": 1,\n        \"quantity\": 1\n      },\n      {\n        \"productId\": 4,\n        \"quantity\": 2\n      }\n    ]\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"Order created with status PENDING\", function () {",
+                  "    pm.expect(json.data.createOrder.status).to.eql(\"PENDING\");",
+                  "});",
+                  "pm.test(\"Total amount is greater than 0\", function () {",
+                  "    pm.expect(parseFloat(json.data.createOrder.totalAmount)).to.be.greaterThan(0);",
+                  "});",
+                  "if (json.data && json.data.createOrder) {",
+                  "    pm.collectionVariables.set(\"lastCreatedOrderId\", json.data.createOrder.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M2 (Negative) - Create Order With Insufficient Stock -> expect BAD_REQUEST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation OverorderStock($input: CreateOrderInput!) {\n  createOrder(input: $input) {\n    id\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"userId\": 1,\n    \"items\": [\n      {\n        \"productId\": 3,\n        \"quantity\": 999999\n      }\n    ]\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Response contains exactly one error\", function () {",
+                  "    pm.expect(json.errors).to.be.an(\"array\").with.lengthOf(1);",
+                  "});",
+                  "pm.test(\"Error is classified as BAD_REQUEST\", function () {",
+                  "    pm.expect(json.errors[0].extensions.errorCode).to.eql(\"BAD_REQUEST\");",
+                  "});",
+                  "pm.test(\"Error extensions include stock details\", function () {",
+                  "    pm.expect(json.errors[0].extensions.requestedQuantity).to.exist;",
+                  "    pm.expect(json.errors[0].extensions.availableQuantity).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M3 (Negative) - Create Order For Unknown User -> expect NOT_FOUND",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation UnknownUserOrder($input: CreateOrderInput!) {\n  createOrder(input: $input) {\n    id\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"userId\": 999999,\n    \"items\": [\n      {\n        \"productId\": 1,\n        \"quantity\": 1\n      }\n    ]\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Error is classified as NOT_FOUND\", function () {",
+                  "    pm.expect(json.errors[0].extensions.errorCode).to.eql(\"NOT_FOUND\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M4 - Update Order Status (valid transition PENDING -> CONFIRMED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation ConfirmOrder($orderId: ID!, $status: OrderStatus!) {\n  updateOrderStatus(orderId: $orderId, status: $status) {\n    id\n    status\n  }\n}",
+                "variables": "{\n  \"orderId\": 3,\n  \"status\": \"CONFIRMED\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"Order status updated to CONFIRMED\", function () {",
+                  "    pm.expect(json.data.updateOrderStatus.status).to.eql(\"CONFIRMED\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M5 (Negative) - Update Order Status Illegal Transition -> expect BAD_REQUEST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation IllegalTransition($orderId: ID!, $status: OrderStatus!) {\n  updateOrderStatus(orderId: $orderId, status: $status) {\n    id\n    status\n  }\n}",
+                "variables": "{\n  \"orderId\": 1,\n  \"status\": \"PENDING\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Response contains exactly one error\", function () {",
+                  "    pm.expect(json.errors).to.be.an(\"array\").with.lengthOf(1);",
+                  "});",
+                  "pm.test(\"Error is classified as BAD_REQUEST\", function () {",
+                  "    pm.expect(json.errors[0].extensions.errorCode).to.eql(\"BAD_REQUEST\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M6 - Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation NewUser($input: CreateUserInput!) {\n  createUser(input: $input) {\n    id\n    name\n    email\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"name\": \"Priya Nair\",\n    \"email\": \"priya.nair@example.com\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"User created with expected name\", function () {",
+                  "    pm.expect(json.data.createUser.name).to.eql(\"Priya Nair\");",
+                  "});",
+                  "if (json.data && json.data.createUser) {",
+                  "    pm.collectionVariables.set(\"lastCreatedUserId\", json.data.createUser.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M7 - Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation NewProduct($input: CreateProductInput!) {\n  createProduct(input: $input) {\n    id\n    name\n    price\n    stockQuantity\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"name\": \"Webcam 1080p\",\n    \"description\": \"USB webcam with built-in mic\",\n    \"price\": 45.0,\n    \"stockQuantity\": 60\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"No GraphQL errors\", function () {",
+                  "    pm.expect(json.errors).to.be.undefined;",
+                  "});",
+                  "pm.test(\"Product created with expected name and price\", function () {",
+                  "    pm.expect(json.data.createProduct.name).to.eql(\"Webcam 1080p\");",
+                  "    pm.expect(json.data.createProduct.price).to.eql(\"45.00\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "M8 (Negative) - Create Order With Invalid Quantity -> expect validation BAD_REQUEST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation InvalidQuantity($input: CreateOrderInput!) {\n  createOrder(input: $input) {\n    id\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"userId\": 1,\n    \"items\": [\n      {\n        \"productId\": 1,\n        \"quantity\": 0\n      }\n    ]\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var json = pm.response.json();",
+                  "pm.test(\"Response contains exactly one error\", function () {",
+                  "    pm.expect(json.errors).to.be.an(\"array\").with.lengthOf(1);",
+                  "});",
+                  "pm.test(\"Error is classified as BAD_REQUEST (validation)\", function () {",
+                  "    pm.expect(json.errors[0].extensions.errorCode).to.eql(\"BAD_REQUEST\");",
+                  "});",
+                  "pm.test(\"Error message mentions quantity\", function () {",
+                  "    pm.expect(json.errors[0].message.toLowerCase()).to.include(\"quantity\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Admin / Console",
+      "item": [
+        {
+          "name": "H2 Console (open in browser, not usable via Postman JSON auth flow)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/h2-console",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "h2-console"
+              ]
+            },
+            "description": "H2's console is a stateful login-form based UI, not a JSON API, so it cannot be meaningfully scripted from Postman. Open this URL directly in a browser instead. JDBC URL: jdbc:h2:mem:ecommercedb, user: sa, password: (empty)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

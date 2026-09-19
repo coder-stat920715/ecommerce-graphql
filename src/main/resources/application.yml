@@ -1,0 +1,60 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ecommerce-graphql
+
+  # ---------------------------------------------------------------
+  # H2 In-Memory Database
+  # ---------------------------------------------------------------
+  datasource:
+    url: jdbc:h2:mem:ecommercedb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+  jpa:
+    hibernate:
+      # data.sql is used for seeding, so we only need Hibernate to create the schema
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        '[jdbc.time_zone]': UTC
+    defer-datasource-initialization: true # allow data.sql to run AFTER Hibernate creates the schema
+    open-in-view: false
+
+  sql:
+    init:
+      mode: always
+
+  # ---------------------------------------------------------------
+  # Spring GraphQL
+  # ---------------------------------------------------------------
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    path: /graphql
+    schema:
+      printer:
+        enabled: true
+      locations: classpath:graphql/
+      file-extensions: .graphqls,.gqls
+    websocket:
+      path: /graphql   # subscriptions over ws://localhost:8080/graphql
+
+logging:
+  level:
+    org.springframework.graphql: DEBUG
+    org.hibernate.SQL: DEBUG
+    com.publicissapient.ecommerce: DEBUG
