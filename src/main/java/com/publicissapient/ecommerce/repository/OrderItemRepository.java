@@ -8,5 +8,7 @@ import java.util.List;
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {
 
     // Bulk fetch used by the Order -> Items @BatchMapping DataLoader.
-    List<OrderItem> findByOrderIdIn(List<Long> orderIds);
+    // Underscore notation traverses the nested "order.id" association path
+    // (OrderItem has no flat "orderId" attribute, only the "order" association).
+    List<OrderItem> findByOrder_IdIn(List<Long> orderIds);
 }

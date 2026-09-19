@@ -11,6 +11,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByStatus(OrderStatus status);
 
     // Bulk fetch used by the User -> Orders @BatchMapping DataLoader.
-    // A single "WHERE user_id IN (...)" query replaces N individual queries.
-    List<Order> findByUserIdIn(List<Long> userIds);
+    // Underscore notation explicitly traverses the nested "user.id" path,
+    // since Order no longer has a flat "userId" JPA-mapped attribute
+    // (only a @Transient convenience getter) — without the underscore,
+    // Spring Data's query derivation cannot resolve "UserId" as a single
+    // attribute and throws PathElementException at startup.
+    List<Order> findByUser_IdIn(List<Long> userIds);
 }

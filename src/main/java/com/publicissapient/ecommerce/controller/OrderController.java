@@ -116,7 +116,7 @@ public class OrderController {
 
         log.debug("Batch loading order items for {} orders in a single query", orders.size());
 
-        List<OrderItem> allItems = orderItemRepository.findByOrderIdIn(orderIds);
+        List<OrderItem> allItems = orderItemRepository.findByOrder_IdIn(orderIds);
 
         Map<Long, List<OrderItem>> itemsByOrderId = allItems.stream()
                 .collect(Collectors.groupingBy(item -> item.getOrder().getId()));

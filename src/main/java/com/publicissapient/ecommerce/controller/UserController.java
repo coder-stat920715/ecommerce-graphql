@@ -78,7 +78,7 @@ public class UserController {
 
         log.debug("Batch loading orders for {} users in a single query: {}", users.size(), userIds);
 
-        List<Order> allOrders = orderRepository.findByUserIdIn(userIds);
+        List<Order> allOrders = orderRepository.findByUser_IdIn(userIds);
 
         Map<Long, List<Order>> ordersByUserId = allOrders.stream()
                 .collect(Collectors.groupingBy(o -> o.getUser().getId()));
